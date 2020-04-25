@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 import time
+import seaborn
 # import random
 # import math
 
@@ -207,9 +208,17 @@ if __name__ == "__main__":
         # get_time(start, start, "Total current", -1)
 
     print(f"\nFinal number of epochs = {epochs}")
+
     # confusion matrix for test data after training
     print(f"Confusion Matrix for learning rate: {learning_rate}:")
-    print(confusion_matrix(test_labels, test_predictions))
+    confusion_m = confusion_matrix(test_labels, test_predictions)
+    print(confusion_m)
+    confusion_df = pd.DataFrame(confusion_m, index=[i for i in "0123456789"], columns=[i for i in "0123456789"])
+    plt.figure(figsize=(10, 10))
+    seaborn.heatmap(confusion_df, annot=True, fmt='.1f')
+    plt.title('Confusion_Matrix_during_MNIST_training_step_size_{0}'.format(learning_rate))
+    plt.savefig(('Confusion_Matrix_Figure' + str(plot_num) + '_Step' + str(learning_rate) + '.jpg'),
+                bbox_inches='tight')
 
     # create a plot of the data accuracy
     plot_num += 1
