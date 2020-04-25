@@ -182,7 +182,7 @@ if __name__ == "__main__":
     test_accuracy.append(digit_classifier.get_accuracy(test_predictions, test_labels))
 
     # train for 70 epochs
-    epochs = 70    # 70
+    epochs = 1    # 70
     for epoch in range(epochs):  # epoch = 0 to 69
         # epoch_start = time.time()
 
@@ -224,7 +224,7 @@ if __name__ == "__main__":
     plt.ylabel('Accuracy')
     plt.legend(loc=2)
     plt.axis('tight')
-    plt.savefig(('NN_Figure' + str(plot_num) + '_Step' + str(learning_rate) + '.jpg'), bbox_inches='tight')
+    plt.savefig(('NN_MLP_Figure' + str(plot_num) + '_Step' + str(learning_rate) + '.jpg'), bbox_inches='tight')
     # plt.savefig((str(epochs) + 'Epoch_Figure' + str(plot_num) + '_Step' + str(learning_rate) + '.jpg'))
 
     # print total program time
