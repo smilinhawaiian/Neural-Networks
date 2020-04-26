@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 import time
 import seaborn
-# import random
-# import math
+import random
+import math
 
 
 class Neuron:
@@ -39,11 +39,22 @@ class Neuron:
         # does the vector function on the entire vector
         self.weight_vector = vector_function(self.weight_vector, input_vector)
 
-    # test an example
-    def test(self, input_vector):
-        # insert bias
-        input_vector = np.insert(input_vector, 0, 1, axis=0)
+    # # test an example
+    # def test(self, input_vector):
+    #     # insert bias
+    #     input_vector = np.insert(input_vector, 0, 1, axis=0)
+    #     return np.dot(self.weight_vector, input_vector)  # returns a SCALAR
+
+    # return dot product(scalar)
+    def get_dot(self, input_vector):
+        input_vector = np.insert(input_vector, 0, 1, axis=0)  # add bias
         return np.dot(self.weight_vector, input_vector)  # returns a SCALAR
+
+    # return activation on example
+    def get_activation(self, input_vector):
+        dot_product = self.get_dot(input_vector)
+        activation = (1.0 / (1.0 + (math.exp(-dot_product))))  # sigmoid
+        return activation
 
 
 class TypeClassifier:
@@ -78,22 +89,34 @@ class TypeClassifier:
             self.train_classifier_vector(input_vector, label)
 
     # return a predicted label
-    def classify_vector(self, input_vector):
-        predictions = [(h_node.test(input_vector)) for h_node in self.hidden_list]
-        return np.argmax(predictions)  # argmax returns position of largest val, which will be == label
+    def classify_vector(self, input_vector): # take in an example and feed it forward to return predicted label
+        # predictions = [(h_node.test(input_vector)) for h_node in self.hidden_list]
+        # return np.argmax(predictions)  # argmax returns position of largest val, which will be == label
+        # feed the example forward
+        h_activations = [(h_node.get_activation(input_vector)) for h_node in self.hidden_list]
+        # h_prediction = np.argmax(h_activations)  # not needed?
+        o_activations = [(o_node.get_activation(h_activations)) for o_node in self.output_list]
+        return np.argmax(o_activations)
 
-    # return classification list given input array
-    def classify_dataset(self, input_matrix):  # classify entire dataset
+    # return output classification list given input array
+    def classify_dataset(self, input_matrix):  # classify entire dataset # feed the example forward
         predictions = [(self.classify_vector(input_vector)) for input_vector in input_matrix]
+        # print(f"predictions is {type(predictions)} {len(predictions)}")  # should be 60000?
         return predictions
 
     # return accuracy over dataset
     def get_accuracy(self, predictions, labels):
-        correct = 0.0
-        comparison_list = zip(predictions, labels)
+        correct = 0
+        comparison_list = list(zip(predictions, labels))
+        # comparison_list is  <class 'list'> with dimensions 60000
+        # print(f"comparison_list is {type(comparison_list)} with dimensions {len(comparison_list)}")
+        # print(f"comparison list: {comparison_list}")
         for prediction, label in comparison_list:
+            # prediction is <class 'list'> with dimensions 10
+            # print(f"prediction is {type(prediction)} with dimensions {len(prediction)}")
+            # print(f"label is {type(label)} with dimensions {len(label)}")
             if int(prediction) == int(label):
-                correct += 1.0
+                correct += 1
         # scale the accuracy data to percent for plotting
         return (correct/len(labels))*100.00
 
@@ -132,14 +155,18 @@ if __name__ == "__main__":
     # Create matrices of data
     # train_data = pd.read_csv("data/mnist_train.csv", header=None, sep=',', engine='c', na_filter=False).values
     # test_data = pd.read_csv("data/mnist_test.csv", header=None, sep=',', engine='c', na_filter=False).values
-    # train_data = pd.read_csv("data/3k_train.csv", header=None, sep=',', engine='c', na_filter=False).values  # 3000
-    # test_data = pd.read_csv("data/3k_test.csv", header=None, sep=',', engine='c', na_filter=False).values
-    train_data = pd.read_csv("data/tiny_train.csv", header=None, sep=',', engine='c', na_filter=False).values  # 100
-    test_data = pd.read_csv("data/tiny_test.csv", header=None, sep=',', engine='c', na_filter=False).values
+    train_data = pd.read_csv("data/3k_train.csv", header=None, sep=',', engine='c', na_filter=False).values  # 3000
+    test_data = pd.read_csv("data/3k_test.csv", header=None, sep=',', engine='c', na_filter=False).values
+    # train_data = pd.read_csv("data/tiny_train.csv", header=None, sep=',', engine='c', na_filter=False).values  # 100
+    # test_data = pd.read_csv("data/tiny_test.csv", header=None, sep=',', engine='c', na_filter=False).values
 
     # create perceptron labels
     train_labels = train_data[:, 0]   # create labels vector for train perceptrons
     test_labels = test_data[:, 0]     # create labels vector for test perceptrons
+    # # train_labels is <class 'numpy.ndarray'> with dimensions (60000, )
+    # print(f"train_labels is {type(train_labels)} with dimensions {train_labels.shape}")
+    # # test_labels is <class 'numpy.ndarray'> with dimensions (10000, )
+    # print(f"test_labels is {type(test_labels)} with dimensions {test_labels.shape}")
 
     # delete the first column (labels) for data computation
     train_data = np.delete(train_data, 0, axis=1)
@@ -154,7 +181,7 @@ if __name__ == "__main__":
     momentum = 0.9       # η = 0.9 default for back-prop
     learning_rate = 0.1  # Step size = 0.1 default
     num_inputs = 784     # 28x28 pixels per instance
-    num_hnodes = 10      # number of hidden nodes
+    num_hnodes = 25      # number of hidden nodes
     num_classes = 10     # 0-9 perceptrons (output nodes)
     train_accuracy = []  # for plotting
     test_accuracy = []   # for plotting
@@ -180,6 +207,11 @@ if __name__ == "__main__":
     # calculate accuracy on test and train sets before training:
     train_predictions = digit_classifier.classify_dataset(train_data)
     test_predictions = digit_classifier.classify_dataset(test_data)
+    # # train_predictions is <class 'list'> with dimensions 60000
+    # print(f"train_predictions is {type(train_predictions)} with dimensions {len(train_predictions)}")
+    # # test_predictions is <class 'list'> with dimensions 10000
+    # print(f"test_predictions is {type(test_predictions)} with dimensions {len(test_predictions)}")
+
     train_accuracy.append(digit_classifier.get_accuracy(train_predictions, train_labels))
     test_accuracy.append(digit_classifier.get_accuracy(test_predictions, test_labels))
     print(f"Training set accuracy: {train_accuracy[curr_epoch]} %")
@@ -188,8 +220,8 @@ if __name__ == "__main__":
     get_time(curr, time.time(), "Total current", -1)
     print("---------------------------------------------------------------")
 
-    # train for 70 epochs or until accuracy is no longer learning(improving)
-    epochs = 5    # 70
+    # train for 50 epochs or until accuracy is no longer learning(improving)
+    epochs = 10    # 50
     learning = True
     while curr_epoch < epochs and learning is True:
         # update epoch number and timer
@@ -197,7 +229,7 @@ if __name__ == "__main__":
         curr_epoch = curr_epoch + 1
 
         # train perceptrons with training dataset
-        digit_classifier.train_classifier_dataset(train_data, train_labels)
+        # digit_classifier.train_classifier_dataset(train_data, train_labels)
 
         # calculate accuracy after training
         train_predictions = digit_classifier.classify_dataset(train_data)
@@ -236,9 +268,9 @@ if __name__ == "__main__":
     plt.xlabel('Predicted Class')
     plt.ylabel('Actual Class')
     seaborn.heatmap(confusion_df, annot=True, fmt='.1f')
-    plt.title('MLNN_Confusion_Matrix_H={0}_η={1}_step={2}_Epochs={3}of{4}'
+    plt.title('MLNN_Confusion_Matrix_H={0}_M={1}_step={2}_Epochs={3}of{4}'
               .format(num_hnodes, momentum, learning_rate, curr_epoch, epochs))
-    plt.savefig(('MLNN_Confusion_H' + str(num_hnodes) + '_η' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
+    plt.savefig(('MLNN_Confusion_H' + str(num_hnodes) + '_M' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
                  + str(curr_epoch) + 'of' + str(epochs) + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
 
     # create and save a plot of the data accuracy during training
@@ -253,9 +285,9 @@ if __name__ == "__main__":
     plt.ylabel('Accuracy (%)')
     plt.legend(loc=2)
     plt.axis('tight')
-    plt.title('MLNN_Accuracy_H={0}_η={1}_step={2}_Epochs={3}of{4}'
+    plt.title('MLNN_Accuracy_H={0}_M={1}_step={2}_Epochs={3}of{4}'
               .format(num_hnodes, momentum, learning_rate, curr_epoch, epochs))
-    plt.savefig(('MLNN_Accuracy_H' + str(num_hnodes) + '_η' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
+    plt.savefig(('MLNN_Accuracy_H' + str(num_hnodes) + '_M' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
                  + str(curr_epoch) + 'of' + str(epochs) + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
 
     # print total program time
@@ -264,8 +296,8 @@ if __name__ == "__main__":
     print("")
 
     # FOR TESTING
-    # train_data = pd.read_csv("data/tiny_train.csv", header=None).values
-    # test_data = pd.read_csv("data/tiny_test.csv", header=None).values
+    # train_data = pd.read_csv("data/mnist_train.csv", header=None, sep=',', engine='c', na_filter=False).values
+    # test_data = pd.read_csv("data/mnist_test.csv", header=None, sep=',', engine='c', na_filter=False).values
     # train_data = pd.read_csv("data/3k_train.csv", header=None, sep=',', engine='c', na_filter=False).values  # 3000
     # test_data = pd.read_csv("data/3k_test.csv", header=None, sep=',', engine='c', na_filter=False).values
     # train_data = pd.read_csv("data/tiny_train.csv", header=None, sep=',', engine='c', na_filter=False).values  # 100
@@ -280,6 +312,14 @@ if __name__ == "__main__":
     # plt.title('MLNN_Accuracy_during_MNIST_training_step={0}_Epochs={1}of{2}'.format(learning_rate, curr_epoch, epochs))
     # plt.savefig(('MLNN_Accuracy_Step' + str(learning_rate) + '_Epochs' + str(curr_epoch) + 'of' + str(epochs)
     #              + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
+    # plt.title('MLNN_Confusion_Matrix_H={0}_η={1}_step={2}_Epochs={3}of{4}'
+    #           .format(num_hnodes, momentum, learning_rate, curr_epoch, epochs))
+    # plt.savefig(('MLNN_Confusion_H' + str(num_hnodes) + '_η' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
+    #              + str(curr_epoch) + 'of' + str(epochs) + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
+    # plt.title('MLNN_Accuracy_H={0}_η={1}_step={2}_Epochs={3}of{4}'
+    #           .format(num_hnodes, momentum, learning_rate, curr_epoch, epochs))
+    # plt.savefig(('MLNN_Accuracy_H' + str(num_hnodes) + '_η' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
+    #              + str(curr_epoch) + 'of' + str(epochs) + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
 
     # CLASSES FOR PRINTING
     # # input_vector is <class 'numpy.ndarray'> with dimensions (784,)
@@ -297,6 +337,10 @@ if __name__ == "__main__":
     # dot_product is <class 'numpy.float64'> with dimensions ()
     # print(f"dot_product is {type(dot_product)} with dimensions {dot_product.shape}")
     # print(f"prediction = {prediction} label = {label}")  # prediction = 7 label = 2
+    # # comparison_list is  <class 'list'> with dimensions 60000
+    # print(f"comparison_list is {type(comparison_list)} with dimensions {len(comparison_list)}")
+    # print(f"prediction is {type(prediction)} with dimensions {len(prediction)}")
+    # print(f"label is {type(label)} with dimensions {len(label)}")
 
     # MAIN FOR PRINTING
     # # train_data is <class 'numpy.ndarray'> with dimensions (60000, 785)
@@ -307,4 +351,7 @@ if __name__ == "__main__":
     # print(f"train_labels is {type(train_labels)} with dimensions {train_labels.shape}")
     # # test_labels is <class 'numpy.ndarray'> with dimensions (10000, )
     # print(f"test_labels is {type(test_labels)} with dimensions {test_labels.shape}")
+    # # train_predictions is <class 'list'> with dimensions 60000
+    # print(f"train_predictions: {type(train_predictions)} dim: {len(train_predictions)}")
+
 
