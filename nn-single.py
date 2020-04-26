@@ -122,8 +122,10 @@ if __name__ == "__main__":
 
     print("----------------------Pre-processing data----------------------")
     # Create matrices of data
-    train_data = pd.read_csv("data/mnist_train.csv", header=None, sep=',', engine='c', na_filter=False).values
-    test_data = pd.read_csv("data/mnist_test.csv", header=None, sep=',', engine='c', na_filter=False).values
+    # train_data = pd.read_csv("data/mnist_train.csv", header=None, sep=',', engine='c', na_filter=False).values
+    # test_data = pd.read_csv("data/mnist_test.csv", header=None, sep=',', engine='c', na_filter=False).values
+    train_data = pd.read_csv("data/tiny_train.csv", header=None, sep=',', engine='c', na_filter=False).values  # 100
+    test_data = pd.read_csv("data/tiny_test.csv", header=None, sep=',', engine='c', na_filter=False).values
 
     # create perceptron labels
     train_labels = train_data[:, 0]   # create labels vector for train perceptrons
@@ -223,7 +225,7 @@ if __name__ == "__main__":
     plt.figure(figsize=(10, 10))
     plt.axis([0, epochs, 0, 100])  # v = [xmin, xmax, ymin, ymax]
     plt.grid(True)
-    x = range(epochs + 1)  # whatever the for-loop is+1
+    x = range(curr_epoch+1)  # whatever the for-loop is+1
     plt.plot(x, train_accuracy, label='Train Accuracy')
     plt.plot(x, test_accuracy, label='Test Accuracy')
     plt.xlabel('Epoch Number')
