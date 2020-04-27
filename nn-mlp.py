@@ -24,26 +24,20 @@ class Neuron:
         self.my_label = my_label  # target label
         # create random  initial weight values matrix
         self.weight_vector = np.random.uniform(low=(-.05), high=.05, size=(input_size+1,))  # +1 for bias
-        self.prev_weights = np.zeros(self.weight_vector.shape)   # keep track of previous weights for tracking delta
+        self.delta_weights = np.zeros(self.weight_vector.shape)   # keep track of previous weights for tracking delta
 
     # train a single example(input_vector)
-    def train(self, input_vector, target):  # target==1 if expected label == perceptron label
-        # compute activation value
-        activation = 1 if self.test(input_vector) > 0 else 0
+    def update_weights(self, input_vector, error):
         # add bias for training
         input_vector = np.insert(input_vector, 0, 1, axis=0)
-        # update weights taking in target and value with inline anonymous function
-        update_funct = lambda w, x_in: w + x_in*(self.my_learning_rate * (target - activation))
+        # update delta_weights taking in error and input with anonymous function
+        update_funct = lambda d_w, x_i: (self.my_learning_rate * error * x_i) + (self.my_momentum * d_w)
         # update a single weight
         vector_function = np.vectorize(update_funct)  # can take in lambda or function
         # does the vector function on the entire vector
-        self.weight_vector = vector_function(self.weight_vector, input_vector)
-
-    # # test an example
-    # def test(self, input_vector):
-    #     # insert bias
-    #     input_vector = np.insert(input_vector, 0, 1, axis=0)
-    #     return np.dot(self.weight_vector, input_vector)  # returns a SCALAR
+        self.delta_weights = vector_function(self.delta_weights, input_vector)
+        # update weights
+        self.weight_vector = self.weight_vector + self.delta_weights
 
     # return dot product(scalar)
     def get_dot(self, input_vector):
@@ -70,53 +64,63 @@ class TypeClassifier:
             self.output_list.append(Neuron(num_hidden, c_learning_rate, c_momentum, o_index))
 
     # train a single example
-    def train_classifier_vector(self, input_vector, label):
-        # check for correct prediction
-        prediction = self.classify_vector(input_vector)
-        # if prediction incorrect, train perceptron weights for example
-        if prediction != label:
-            for h_node in self.hidden_list:
-                target = 0.9 if label == h_node.my_label else 0.1
-                h_node.train(input_vector, target)
+    def train_classifier_vector(self, input_vector, label): # feed forward
+        # FEED FORWARD - calculate activations
+        h_activations = [(h_node.get_activation(input_vector)) for h_node in self.hidden_list]
+        o_activations = [(o_node.get_activation(h_activations)) for o_node in self.output_list]
+        # BACK PROPAGATION - calculate error terms
+        o_error = []
+        h_error = []
+        kj_dot = 0
+
+        for k in range(len(o_activations)):
+            o_k = o_activations[k]
+            t_k = 0.9 if self.output_list[k].my_label == label else 0.1
+            o_error.append(o_k*(1-o_k)*(t_k-o_k))
+
+        for k in range(len(o_error)):
+            kj_dot += np.dot(self.output_list[k].weight_vector, o_error[k])
+
+        for j in range(len(h_activations)):
+            h_j = h_activations[j]
+            kj_val = kj_dot[j]
+            h_error.append(h_j*(1-h_j)*kj_val)
+        # BACK PROPAGATION - update weights
+        for o in range(len(self.output_list)):
+            self.output_list[o].update_weights(h_activations, o_error[o])
+        for h in range(len(self.hidden_list)):
+            self.hidden_list[h].update_weights(input_vector, h_error[h])
 
     # train entire dataset
     def train_classifier_dataset(self, input_matrix, label_vector):
         # shuffle list
         zipped_data = list(zip(input_matrix, label_vector))
         np.random.shuffle(zipped_data)
-        # for each row
+        # pass single example to train
         for input_vector, label in zipped_data:
             self.train_classifier_vector(input_vector, label)
 
     # return a predicted label
     def classify_vector(self, input_vector): # take in an example and feed it forward to return predicted label
-        # predictions = [(h_node.test(input_vector)) for h_node in self.hidden_list]
-        # return np.argmax(predictions)  # argmax returns position of largest val, which will be == label
         # feed the example forward
         h_activations = [(h_node.get_activation(input_vector)) for h_node in self.hidden_list]
-        # h_prediction = np.argmax(h_activations)  # not needed?
         o_activations = [(o_node.get_activation(h_activations)) for o_node in self.output_list]
-        return np.argmax(o_activations)
+        return np.argmax(o_activations)  # argmax returns position of largest val, which will be == output_node label
 
     # return output classification list given input array
     def classify_dataset(self, input_matrix):  # classify entire dataset # feed the example forward
         predictions = [(self.classify_vector(input_vector)) for input_vector in input_matrix]
-        # print(f"predictions is {type(predictions)} {len(predictions)}")  # should be 60000?
         return predictions
 
     # return accuracy over dataset
-    def get_accuracy(self, predictions, labels):
-        correct = 0
+    def get_accuracy(self, input_matrix, labels):
+        # get predictions
+        predictions = self.classify_dataset(input_matrix)
         comparison_list = list(zip(predictions, labels))
-        # comparison_list is  <class 'list'> with dimensions 60000
-        # print(f"comparison_list is {type(comparison_list)} with dimensions {len(comparison_list)}")
-        # print(f"comparison list: {comparison_list}")
+        correct = 0.0
         for prediction, label in comparison_list:
-            # prediction is <class 'list'> with dimensions 10
-            # print(f"prediction is {type(prediction)} with dimensions {len(prediction)}")
-            # print(f"label is {type(label)} with dimensions {len(label)}")
             if int(prediction) == int(label):
-                correct += 1
+                correct += 1.0
         # scale the accuracy data to percent for plotting
         return (correct/len(labels))*100.00
 
@@ -152,6 +156,10 @@ if __name__ == "__main__":
     print("")
 
     print("----------------------Pre-processing data----------------------")
+    print("Experiment 1 - Vary the number of hidden units")
+    # print("Experiment 2 - Vary the momentum value")
+    # print("Experiment 3 - Vary the number of training examples")
+
     # Create matrices of data
     # train_data = pd.read_csv("data/mnist_train.csv", header=None, sep=',', engine='c', na_filter=False).values
     # test_data = pd.read_csv("data/mnist_test.csv", header=None, sep=',', engine='c', na_filter=False).values
@@ -163,10 +171,6 @@ if __name__ == "__main__":
     # create perceptron labels
     train_labels = train_data[:, 0]   # create labels vector for train perceptrons
     test_labels = test_data[:, 0]     # create labels vector for test perceptrons
-    # # train_labels is <class 'numpy.ndarray'> with dimensions (60000, )
-    # print(f"train_labels is {type(train_labels)} with dimensions {train_labels.shape}")
-    # # test_labels is <class 'numpy.ndarray'> with dimensions (10000, )
-    # print(f"test_labels is {type(test_labels)} with dimensions {test_labels.shape}")
 
     # delete the first column (labels) for data computation
     train_data = np.delete(train_data, 0, axis=1)
@@ -181,7 +185,7 @@ if __name__ == "__main__":
     momentum = 0.9       # η = 0.9 default for back-prop
     learning_rate = 0.1  # Step size = 0.1 default
     num_inputs = 784     # 28x28 pixels per instance
-    num_hnodes = 25      # number of hidden nodes
+    num_hnodes = 100     # number of hidden nodes
     num_classes = 10     # 0-9 perceptrons (output nodes)
     train_accuracy = []  # for plotting
     test_accuracy = []   # for plotting
@@ -205,23 +209,15 @@ if __name__ == "__main__":
     print("---------------------------------------------------------------")
     print(f"Epoch {curr_epoch}")
     # calculate accuracy on test and train sets before training:
-    train_predictions = digit_classifier.classify_dataset(train_data)
-    test_predictions = digit_classifier.classify_dataset(test_data)
-    # # train_predictions is <class 'list'> with dimensions 60000
-    # print(f"train_predictions is {type(train_predictions)} with dimensions {len(train_predictions)}")
-    # # test_predictions is <class 'list'> with dimensions 10000
-    # print(f"test_predictions is {type(test_predictions)} with dimensions {len(test_predictions)}")
-
-    train_accuracy.append(digit_classifier.get_accuracy(train_predictions, train_labels))
-    test_accuracy.append(digit_classifier.get_accuracy(test_predictions, test_labels))
+    train_accuracy.append(digit_classifier.get_accuracy(train_data, train_labels))
+    test_accuracy.append(digit_classifier.get_accuracy(test_data, test_labels))
     print(f"Training set accuracy: {train_accuracy[curr_epoch]} %")
     print(f"Testing set accuracy: {test_accuracy[curr_epoch]} %")
 
     get_time(curr, time.time(), "Total current", -1)
     print("---------------------------------------------------------------")
 
-    # train for 50 epochs or until accuracy is no longer learning(improving)
-    epochs = 10    # 50
+    epochs = 5        # 50
     learning = True
     while curr_epoch < epochs and learning is True:
         # update epoch number and timer
@@ -229,18 +225,16 @@ if __name__ == "__main__":
         curr_epoch = curr_epoch + 1
 
         # train perceptrons with training dataset
-        # digit_classifier.train_classifier_dataset(train_data, train_labels)
+        digit_classifier.train_classifier_dataset(train_data, train_labels)
 
         # calculate accuracy after training
-        train_predictions = digit_classifier.classify_dataset(train_data)
-        test_predictions = digit_classifier.classify_dataset(test_data)
-        train_accuracy.append(digit_classifier.get_accuracy(train_predictions, train_labels))
-        test_accuracy.append(digit_classifier.get_accuracy(test_predictions, test_labels))
+        train_accuracy.append(digit_classifier.get_accuracy(train_data, train_labels))
+        test_accuracy.append(digit_classifier.get_accuracy(test_data, test_labels))
 
         # if accuracy isn't changing anymore, no need to continue training
-        if abs(train_accuracy[curr_epoch] - train_accuracy[curr_epoch-1]) < 0.001:
-            print(f"No change, so end at curr_epoch = {curr_epoch}")
-            learning = False
+        # if abs(train_accuracy[curr_epoch] - train_accuracy[curr_epoch-1]) < 0.001:
+        #     print(f"No change, so end at curr_epoch = {curr_epoch}")
+        #     learning = False
 
         # print time for single epoch
         epoch_end = time.time()
@@ -259,6 +253,10 @@ if __name__ == "__main__":
     # print final number of epochs trained
     print(f"\nFinal number of epochs = {curr_epoch}")
 
+    # calculate predictions for confusion matrix
+    test_predictions = digit_classifier.classify_dataset(test_data)
+    num_examples = len(train_labels)
+
     # create and save confusion matrix for test data after training
     print(f"Confusion Matrix for learning rate: {learning_rate}:")
     confusion_m = confusion_matrix(test_labels, test_predictions)
@@ -268,9 +266,9 @@ if __name__ == "__main__":
     plt.xlabel('Predicted Class')
     plt.ylabel('Actual Class')
     seaborn.heatmap(confusion_df, annot=True, fmt='.1f')
-    plt.title('MLNN_Confusion_Matrix_H={0}_M={1}_step={2}_Epochs={3}of{4}'
-              .format(num_hnodes, momentum, learning_rate, curr_epoch, epochs))
-    plt.savefig(('MLNN_Confusion_H' + str(num_hnodes) + '_M' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
+    plt.title('MLNN_Confusion_Matrix_H={0}_M={1}_Examples={2}_Epochs={3}of{4}'
+              .format(num_hnodes, momentum, num_examples, curr_epoch, epochs))
+    plt.savefig(('MLNN_Confusion_H' + str(num_hnodes) + '_M' + str(momentum) + '_Ex' + str(num_examples) + '_Epochs'
                  + str(curr_epoch) + 'of' + str(epochs) + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
 
     # create and save a plot of the data accuracy during training
@@ -285,9 +283,9 @@ if __name__ == "__main__":
     plt.ylabel('Accuracy (%)')
     plt.legend(loc=2)
     plt.axis('tight')
-    plt.title('MLNN_Accuracy_H={0}_M={1}_step={2}_Epochs={3}of{4}'
-              .format(num_hnodes, momentum, learning_rate, curr_epoch, epochs))
-    plt.savefig(('MLNN_Accuracy_H' + str(num_hnodes) + '_M' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
+    plt.title('MLNN_Accuracy_H={0}_M={1}_Ex={2}_Epochs={3}of{4}'
+              .format(num_hnodes, momentum, num_examples, curr_epoch, epochs))
+    plt.savefig(('MLNN_Accuracy_H' + str(num_hnodes) + '_M' + str(momentum) + '_Ex' + str(num_examples) + '_Epochs'
                  + str(curr_epoch) + 'of' + str(epochs) + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
 
     # print total program time
@@ -302,7 +300,17 @@ if __name__ == "__main__":
     # test_data = pd.read_csv("data/3k_test.csv", header=None, sep=',', engine='c', na_filter=False).values
     # train_data = pd.read_csv("data/tiny_train.csv", header=None, sep=',', engine='c', na_filter=False).values  # 100
     # test_data = pd.read_csv("data/tiny_test.csv", header=None, sep=',', engine='c', na_filter=False).values
+    # train_predictions = digit_classifier.classify_dataset(train_data)
+    # test_predictions = digit_classifier.classify_dataset(test_data)
+    # # train_predictions is <class 'list'> with dimensions 60000
+    # print(f"train_predictions is {type(train_predictions)} with dimensions {len(train_predictions)}")
+    # # test_predictions is <class 'list'> with dimensions 10000
+    # print(f"test_predictions is {type(test_predictions)} with dimensions {len(test_predictions)}")
     # insert bias (input, indice, valueinserted, axis-optional
+    # # Test slicing test data diff way with indexing - delete first column of labels
+    # test_data_test = test_data[:, 1:]
+    # # test_data_test is <class 'numpy.ndarray'> with dimensions (60000, 784)
+    # print(f"test_data_test is {type(test_data_test)} with dimensions {test_data_test.shape}")
     # input_vector = np.insert(input_vector, 0, 1, axis=0)  # bias 1 not 1/255
     # plt.savefig((str(epochs) + 'Epoch_Figure' + str(plot_num) + '_Step' + str(learning_rate) + '.jpg'))
     # plt.savefig(('MLP_Figure' + str(plot_num) + '_Step' + str(learning_rate) + '.jpg'), bbox_inches='tight')
@@ -319,6 +327,14 @@ if __name__ == "__main__":
     # plt.title('MLNN_Accuracy_H={0}_η={1}_step={2}_Epochs={3}of{4}'
     #           .format(num_hnodes, momentum, learning_rate, curr_epoch, epochs))
     # plt.savefig(('MLNN_Accuracy_H' + str(num_hnodes) + '_η' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
+    #              + str(curr_epoch) + 'of' + str(epochs) + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
+    # plt.title('MLNN_Accuracy_H={0}_M={1}_Step={2}_Epochs={3}of{4}'
+    #           .format(num_hnodes, momentum, learning_rate, curr_epoch, epochs))
+    # plt.savefig(('MLNN_Accuracy_H' + str(num_hnodes) + '_M' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
+    #              + str(curr_epoch) + 'of' + str(epochs) + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
+    # plt.title('MLNN_Confusion_Matrix_H={0}_M={1}_step={2}_Epochs={3}of{4}'
+    #           .format(num_hnodes, momentum, learning_rate, curr_epoch, epochs))
+    # plt.savefig(('MLNN_Confusion_H' + str(num_hnodes) + '_M' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
     #              + str(curr_epoch) + 'of' + str(epochs) + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
 
     # CLASSES FOR PRINTING
