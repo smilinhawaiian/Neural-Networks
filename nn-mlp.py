@@ -1,8 +1,10 @@
 # Sharice Mayer
-# 04-25-20
-# CS445 ML - Spring 2020
-# Program #1
-# Create a multi-layer-perceptron NN with 1 hidden layer
+# 04/25/20
+# Machine Learning
+# Multi-layer-perceptron NN with 1 hidden layer
+# Feed-Forward, Back-Propagation, SSE
+# Stochastic Gradient Descent, Sigmoid Activation
+# Classify Handwritten Digits using the MNIST dataset
 
 
 import pandas as pd
@@ -68,6 +70,7 @@ class TypeClassifier:
         # FEED FORWARD - calculate activations
         h_activations = [(h_node.get_activation(input_vector)) for h_node in self.hidden_list]
         o_activations = [(o_node.get_activation(h_activations)) for o_node in self.output_list]
+        
         # BACK PROPAGATION - calculate error terms
         o_error = []
         h_error = []
@@ -85,6 +88,7 @@ class TypeClassifier:
             h_j = h_activations[j]
             kj_val = kj_dot[j]
             h_error.append(h_j*(1-h_j)*kj_val)
+        
         # BACK PROPAGATION - update weights
         for o in range(len(self.output_list)):
             self.output_list[o].update_weights(h_activations, o_error[o])
@@ -148,23 +152,22 @@ if __name__ == "__main__":
     # Print Header information
     template = "{0:14}{1:20}"
     print("")
-    print(template.format("Course:", "CS445-ML"))
     print(template.format("Date:", "04/25/20"))
     print(template.format("Name:", "Sharice Mayer"))
-    print(template.format("Assignment:", "Program1"))
     print(template.format("Topic:", "NN-Multi-Layer-Perceptrons"))
     print("")
 
     print("----------------------Pre-processing data----------------------")
     print("Experiment 1 - Vary the number of hidden units")
+    print("Testing 100 hidden units")
     # print("Experiment 2 - Vary the momentum value")
     # print("Experiment 3 - Vary the number of training examples")
 
     # Create matrices of data
-    # train_data = pd.read_csv("data/mnist_train.csv", header=None, sep=',', engine='c', na_filter=False).values
-    # test_data = pd.read_csv("data/mnist_test.csv", header=None, sep=',', engine='c', na_filter=False).values
-    train_data = pd.read_csv("data/3k_train.csv", header=None, sep=',', engine='c', na_filter=False).values  # 3000
-    test_data = pd.read_csv("data/3k_test.csv", header=None, sep=',', engine='c', na_filter=False).values
+    train_data = pd.read_csv("data/mnist_train.csv", header=None, sep=',', engine='c', na_filter=False).values
+    test_data = pd.read_csv("data/mnist_test.csv", header=None, sep=',', engine='c', na_filter=False).values
+    # train_data = pd.read_csv("data/3k_train.csv", header=None, sep=',', engine='c', na_filter=False).values  # 3000
+    # test_data = pd.read_csv("data/3k_test.csv", header=None, sep=',', engine='c', na_filter=False).values
     # train_data = pd.read_csv("data/tiny_train.csv", header=None, sep=',', engine='c', na_filter=False).values  # 100
     # test_data = pd.read_csv("data/tiny_test.csv", header=None, sep=',', engine='c', na_filter=False).values
 
@@ -209,15 +212,17 @@ if __name__ == "__main__":
     print("---------------------------------------------------------------")
     print(f"Epoch {curr_epoch}")
     # calculate accuracy on test and train sets before training:
-    train_accuracy.append(digit_classifier.get_accuracy(train_data, train_labels))
-    test_accuracy.append(digit_classifier.get_accuracy(test_data, test_labels))
+    train_accuracy.append(digit_classifier.get_accuracy(train_data, train_labels))   # save for confusion matrix
+    test_accuracy.append(digit_classifier.get_accuracy(test_data, test_labels))      # save for confusion matrix
     print(f"Training set accuracy: {train_accuracy[curr_epoch]} %")
     print(f"Testing set accuracy: {test_accuracy[curr_epoch]} %")
 
     get_time(curr, time.time(), "Total current", -1)
     print("---------------------------------------------------------------")
+    # print("Running Epochs ... ")
+    # print("---------------------------------------------------------------")
 
-    epochs = 5        # 50
+    epochs = 50        # 5-10 for pre-testing
     learning = True
     while curr_epoch < epochs and learning is True:
         # update epoch number and timer
@@ -232,9 +237,12 @@ if __name__ == "__main__":
         test_accuracy.append(digit_classifier.get_accuracy(test_data, test_labels))
 
         # if accuracy isn't changing anymore, no need to continue training
-        # if abs(train_accuracy[curr_epoch] - train_accuracy[curr_epoch-1]) < 0.001:
-        #     print(f"No change, so end at curr_epoch = {curr_epoch}")
-        #     learning = False
+        if abs(train_accuracy[curr_epoch] - train_accuracy[curr_epoch-1]) < 0.001:
+            print(f"No change, so end at curr_epoch = {curr_epoch}")
+            learning = False
+
+        # brevity option in epoch output for console report img
+	# if(curr_epoch == epochs)  # to use brevity option, indent the following print statements
 
         # print time for single epoch
         epoch_end = time.time()
@@ -255,10 +263,12 @@ if __name__ == "__main__":
 
     # calculate predictions for confusion matrix
     test_predictions = digit_classifier.classify_dataset(test_data)
-    num_examples = len(train_labels)
+    # num_examples = len(train_labels)
 
     # create and save confusion matrix for test data after training
     print(f"Confusion Matrix for learning rate: {learning_rate}:")
+    # print(f"test_labels:  {type(test_labels)}  {test_labels.shape}")
+    # print(f"test_predictions:  {type(test_predictions)}  {len(test_predictions)}")
     confusion_m = confusion_matrix(test_labels, test_predictions)
     print(confusion_m)
     confusion_df = pd.DataFrame(confusion_m, index=[i for i in "0123456789"], columns=[i for i in "0123456789"])
@@ -266,9 +276,9 @@ if __name__ == "__main__":
     plt.xlabel('Predicted Class')
     plt.ylabel('Actual Class')
     seaborn.heatmap(confusion_df, annot=True, fmt='.1f')
-    plt.title('MLNN_Confusion_Matrix_H={0}_M={1}_Examples={2}_Epochs={3}of{4}'
-              .format(num_hnodes, momentum, num_examples, curr_epoch, epochs))
-    plt.savefig(('MLNN_Confusion_H' + str(num_hnodes) + '_M' + str(momentum) + '_Ex' + str(num_examples) + '_Epochs'
+    plt.title('MLNN_Confusion_Matrix_H={0}_M={1}_step={2}_Epochs={3}of{4}'
+              .format(num_hnodes, momentum, learning_rate, curr_epoch, epochs))
+    plt.savefig(('MLNN_Confusion_H' + str(num_hnodes) + '_M' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
                  + str(curr_epoch) + 'of' + str(epochs) + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
 
     # create and save a plot of the data accuracy during training
@@ -283,91 +293,13 @@ if __name__ == "__main__":
     plt.ylabel('Accuracy (%)')
     plt.legend(loc=2)
     plt.axis('tight')
-    plt.title('MLNN_Accuracy_H={0}_M={1}_Ex={2}_Epochs={3}of{4}'
-              .format(num_hnodes, momentum, num_examples, curr_epoch, epochs))
-    plt.savefig(('MLNN_Accuracy_H' + str(num_hnodes) + '_M' + str(momentum) + '_Ex' + str(num_examples) + '_Epochs'
+    plt.title('MLNN_Accuracy_H={0}_M={1}_step={2}_Epochs={3}of{4}'
+              .format(num_hnodes, momentum, learning_rate, curr_epoch, epochs))
+    plt.savefig(('MLNN_Accuracy_H' + str(num_hnodes) + '_M' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
                  + str(curr_epoch) + 'of' + str(epochs) + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
 
     # print total program time
     end = time.time()
     get_time(start, end, "\nTotal program", -1)
     print("")
-
-    # FOR TESTING
-    # train_data = pd.read_csv("data/mnist_train.csv", header=None, sep=',', engine='c', na_filter=False).values
-    # test_data = pd.read_csv("data/mnist_test.csv", header=None, sep=',', engine='c', na_filter=False).values
-    # train_data = pd.read_csv("data/3k_train.csv", header=None, sep=',', engine='c', na_filter=False).values  # 3000
-    # test_data = pd.read_csv("data/3k_test.csv", header=None, sep=',', engine='c', na_filter=False).values
-    # train_data = pd.read_csv("data/tiny_train.csv", header=None, sep=',', engine='c', na_filter=False).values  # 100
-    # test_data = pd.read_csv("data/tiny_test.csv", header=None, sep=',', engine='c', na_filter=False).values
-    # train_predictions = digit_classifier.classify_dataset(train_data)
-    # test_predictions = digit_classifier.classify_dataset(test_data)
-    # # train_predictions is <class 'list'> with dimensions 60000
-    # print(f"train_predictions is {type(train_predictions)} with dimensions {len(train_predictions)}")
-    # # test_predictions is <class 'list'> with dimensions 10000
-    # print(f"test_predictions is {type(test_predictions)} with dimensions {len(test_predictions)}")
-    # insert bias (input, indice, valueinserted, axis-optional
-    # # Test slicing test data diff way with indexing - delete first column of labels
-    # test_data_test = test_data[:, 1:]
-    # # test_data_test is <class 'numpy.ndarray'> with dimensions (60000, 784)
-    # print(f"test_data_test is {type(test_data_test)} with dimensions {test_data_test.shape}")
-    # input_vector = np.insert(input_vector, 0, 1, axis=0)  # bias 1 not 1/255
-    # plt.savefig((str(epochs) + 'Epoch_Figure' + str(plot_num) + '_Step' + str(learning_rate) + '.jpg'))
-    # plt.savefig(('MLP_Figure' + str(plot_num) + '_Step' + str(learning_rate) + '.jpg'), bbox_inches='tight')
-    # plt.title('MLNN_Confusion_Matrix_MNIST_training_step={0}_Epochs={1}of{2}'.format(learning_rate, curr_epoch, epochs))
-    # plt.savefig(('MLNN_Confusion_Matrix_Step' + str(learning_rate) + '_Epochs' + str(curr_epoch) + 'of' + str(epochs)
-    #              + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
-    # plt.title('MLNN_Accuracy_during_MNIST_training_step={0}_Epochs={1}of{2}'.format(learning_rate, curr_epoch, epochs))
-    # plt.savefig(('MLNN_Accuracy_Step' + str(learning_rate) + '_Epochs' + str(curr_epoch) + 'of' + str(epochs)
-    #              + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
-    # plt.title('MLNN_Confusion_Matrix_H={0}_η={1}_step={2}_Epochs={3}of{4}'
-    #           .format(num_hnodes, momentum, learning_rate, curr_epoch, epochs))
-    # plt.savefig(('MLNN_Confusion_H' + str(num_hnodes) + '_η' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
-    #              + str(curr_epoch) + 'of' + str(epochs) + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
-    # plt.title('MLNN_Accuracy_H={0}_η={1}_step={2}_Epochs={3}of{4}'
-    #           .format(num_hnodes, momentum, learning_rate, curr_epoch, epochs))
-    # plt.savefig(('MLNN_Accuracy_H' + str(num_hnodes) + '_η' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
-    #              + str(curr_epoch) + 'of' + str(epochs) + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
-    # plt.title('MLNN_Accuracy_H={0}_M={1}_Step={2}_Epochs={3}of{4}'
-    #           .format(num_hnodes, momentum, learning_rate, curr_epoch, epochs))
-    # plt.savefig(('MLNN_Accuracy_H' + str(num_hnodes) + '_M' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
-    #              + str(curr_epoch) + 'of' + str(epochs) + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
-    # plt.title('MLNN_Confusion_Matrix_H={0}_M={1}_step={2}_Epochs={3}of{4}'
-    #           .format(num_hnodes, momentum, learning_rate, curr_epoch, epochs))
-    # plt.savefig(('MLNN_Confusion_H' + str(num_hnodes) + '_M' + str(momentum) + '_Step' + str(learning_rate) + '_Epochs'
-    #              + str(curr_epoch) + 'of' + str(epochs) + '_Figure_' + str(plot_num) + '.jpg'), bbox_inches='tight')
-
-    # CLASSES FOR PRINTING
-    # # input_vector is <class 'numpy.ndarray'> with dimensions (784,)
-    # print(f"input_vector is {type(input_vector)} with dimensions {input_vector.shape}")
-    # # label is <class 'numpy.int64'> with dimensions ()
-    # print(f"label is {type(label)} with dimensions {label.shape}")
-    # # prediction is <class 'numpy.int64'> with dimensions ()
-    # print(f"prediction is {type(prediction)} with dimensions {prediction.shape}")
-    # # input_matrix is <class 'numpy.ndarray'> with dimensions (60000, 784)
-    # print(f"input_matrix is {type(input_matrix)} with dimensions {input_matrix.shape}")
-    # # label_vector is <class 'numpy.ndarray'> with dimensions (60000,)
-    # print(f"label_vector is {type(label_vector)} with dimensions {label_vector.shape}")
-    # dot_vector is <class 'numpy.float64'> with dimensions ()
-    # print(f"dot_vector is {type(dot_vector)} with dimensions {dot_vector.shape}")
-    # dot_product is <class 'numpy.float64'> with dimensions ()
-    # print(f"dot_product is {type(dot_product)} with dimensions {dot_product.shape}")
-    # print(f"prediction = {prediction} label = {label}")  # prediction = 7 label = 2
-    # # comparison_list is  <class 'list'> with dimensions 60000
-    # print(f"comparison_list is {type(comparison_list)} with dimensions {len(comparison_list)}")
-    # print(f"prediction is {type(prediction)} with dimensions {len(prediction)}")
-    # print(f"label is {type(label)} with dimensions {len(label)}")
-
-    # MAIN FOR PRINTING
-    # # train_data is <class 'numpy.ndarray'> with dimensions (60000, 785)
-    # print(f"train_data is {type(train_data)} with dimensions {train_data.shape}")
-    # # test_data is <class 'numpy.ndarray'> with dimensions (10000, 785)
-    # print(f"test_data is {type(test_data)} with dimensions {test_data.shape}")
-    # # train_labels is <class 'numpy.ndarray'> with dimensions (60000, )
-    # print(f"train_labels is {type(train_labels)} with dimensions {train_labels.shape}")
-    # # test_labels is <class 'numpy.ndarray'> with dimensions (10000, )
-    # print(f"test_labels is {type(test_labels)} with dimensions {test_labels.shape}")
-    # # train_predictions is <class 'list'> with dimensions 60000
-    # print(f"train_predictions: {type(train_predictions)} dim: {len(train_predictions)}")
-
 
